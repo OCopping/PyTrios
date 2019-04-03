@@ -25,18 +25,18 @@ TIMEOUT_MF = 5
 
 class TSerial(Serial):
     def __init__(self, port, timeout=0.01, baudrate=9600, xonxoff=True,
-                 parity='N', stopbits=1, bytesize=8, verbosity=1):
+                 parity='N', stopbits=1, bytesize=8):#, verbosity=1):
         try:
             port = str(port)
-            port = "COM"+port.upper().strip('COM')
+            port = "/dev/tty"+port.strip('/dev/tty')
             Serial.__init__(self, port)
-            self.setBaudrate(baudrate)
+            self.baudrate = baudrate
             self.timeout = timeout
             self.xonxoff = xonxoff
             self.parity = parity
             self.stopbits = stopbits
             self.bytesize = bytesize
-            self.verbosity = verbosity
+            #self.verbosity = verbosity
         except Exception:
             print("Error connecting to port {0}\n".format(self.port),
                   file=sys.stderr)
@@ -492,7 +492,7 @@ def TCommandSend(ser, commandset, command='query', ipschan='00', par1='00'):
 
     commandhex = commanddict[commandsetdict[commandset]][command]
     try:
-        if ser.outWaiting() > 0:
+        if ser.out_waiting > 0:
             ser.flush()
         ser.write(commandhex)
         if ser.verbosity >= 3:

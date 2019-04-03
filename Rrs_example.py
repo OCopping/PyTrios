@@ -269,7 +269,7 @@ def parse_arguments():
     example = """Rrs_example 4 5 6 -GPS 7 -vcom 1 -vchn 4 \
     -calpath calfiles -inttime 0 -period 10"""
     parser = argparse.ArgumentParser(description=None, epilog=example)
-    parser.add_argument('COM', nargs='+', type=int,
+    parser.add_argument('-COM', nargs='+', type=str,
                         help='Trios COM port(s)')
     parser.add_argument('-GPS', type=int,
                         help='GPS COM port')
@@ -285,7 +285,7 @@ def parse_arguments():
                         help="raw data output file")
     parser.add_argument("-calout", type=str,
                         help="calibrated data output file")
-    parser.add_argument("-calpath", type=str, default='calfiles',
+    parser.add_argument("-calpath", type=str,
                         help="path to search for calibration files")
     parser.add_argument("-inttime", type=int, default=0,
                         choices=[0, 4, 8, 16, 32, 64, 128, 256, 512, 1024,
