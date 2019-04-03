@@ -48,13 +48,13 @@ def run(args):
     else:
         calibrate = False
 
-    if args.GPS is not None:
-        gpsport = str(args.GPS)
-        gpsport = "COM"+gpsport.upper().strip('COM')
-        gps = startGps(gpsport)
-        usegps = True
-    else:
-        usegps = False
+    # if args.GPS is not None:
+    #     gpsport = str(args.GPS)
+    #     gpsport = "COM"+gpsport.upper().strip('COM')
+    #     gps = startGps(gpsport)
+    #     usegps = True
+    # else:
+    #     usegps = False
 
     # connect and start listening on specified COM port(s)
     coms = ps.TMonitor(args.COM, baudrate=9600)
@@ -87,39 +87,39 @@ def run(args):
     go = True
     while go:
         try:
-            if usegps:
-                gpstimer = time.time()
-                while (time.time() - gpstimer < 3) and\
-                        (gps.fix_quality < 2 or gps.old):
-                    print("Waiting for GPS fix", file=sys.stdout)
-                    print("Fix quality {0}, {1}".format(gps.fix_quality, gps.lon))
-                    time.sleep(1)
-                if (time.time() - gpstimer >= 3) and\
-                        (gps.fix_quality < 2 or gps.old):
-                    print("GPS timed out", file=sys.stdout)
-                    lasttrigGPSdt = ''
-                    lasttrigGPSlat = ''
-                    lasttrigGPSlon = ''
-                    lasttrigGPSspeed = ''
-                    lasttrigGPSheading = ''
-            else:
-                lasttrigGPSdt = ''
-                lasttrigGPSlat = ''
-                lasttrigGPSlon = ''
-                lasttrigGPSspeed = ''
-                lasttrigGPSheading = ''
+            # if usegps:
+            #     gpstimer = time.time()
+            #     while (time.time() - gpstimer < 3) and\
+            #             (gps.fix_quality < 2 or gps.old):
+            #         print("Waiting for GPS fix", file=sys.stdout)
+            #         print("Fix quality {0}, {1}".format(gps.fix_quality, gps.lon))
+            #         time.sleep(1)
+            #     if (time.time() - gpstimer >= 3) and\
+            #             (gps.fix_quality < 2 or gps.old):
+            #         print("GPS timed out", file=sys.stdout)
+            #         lasttrigGPSdt = ''
+            #         lasttrigGPSlat = ''
+            #         lasttrigGPSlon = ''
+            #         lasttrigGPSspeed = ''
+            #         lasttrigGPSheading = ''
+            # else:
+            lasttrigGPSdt = ''
+            lasttrigGPSlat = ''
+            lasttrigGPSlon = ''
+            lasttrigGPSspeed = ''
+            lasttrigGPSheading = ''
             counter += 1
             for s in sams:
                 lasttrigger = datetime.datetime.now()
                 lasttrigstr = lasttrigger.isoformat()
-                try:
-                    lasttrigGPSdt = gps.datetime.isoformat()
-                    lasttrigGPSlat = str(gps.lat)
-                    lasttrigGPSlon = str(gps.lon)
-                    lasttrigGPSspeed = str(gps.speed)
-                    lasttrigGPSheading = str(gps.heading)
-                except:
-                    pass
+                # try:
+                #     lasttrigGPSdt = gps.datetime.isoformat()
+                #     lasttrigGPSlat = str(gps.lat)
+                #     lasttrigGPSlon = str(gps.lon)
+                #     lasttrigGPSspeed = str(gps.speed)
+                #     lasttrigGPSheading = str(gps.heading)
+                # except:
+                #     pass
                 if args.inttime > 0:
                     # trigger single measurement at fixed integration time
                     tc[s].startIntSet(coms[0], args.inttime, trigger=lasttrigger)
@@ -236,33 +236,33 @@ def run(args):
                 go = False
         except:
             ps.TClose(coms)
-            if usegps:
-                gps.stop()
-                # [p.close() for p in gps.serial_ports]
+            # if usegps:
+            #     gps.stop()
+            #     # [p.close() for p in gps.serial_ports]
             print("unexpected error!")
             raise
             sys.exit(1)
     # Cleanly close COM connections + listening threads
     ps.TClose(coms)
-    if usegps:
-        gps.stop()
-        # [p.close() for p in gps.serial_ports]
+    # if usegps:
+    #     gps.stop()
+    #     # [p.close() for p in gps.serial_ports]
 
     raw_input('Press enter to close')
     sys.exit(0)
 
-def startGps(comportstr):
-    ser = serial.Serial(comportstr, baudrate=4800)  # open serial port
-    if not ser.isOpen:
-        ser.open()
-    if not ser.isOpen:
-        print("Could not open GPS serial port")
-        sys.exit(1)
+# def startGps(comportstr):
+#     ser = serial.Serial(comportstr, baudrate=4800)  # open serial port
+#     if not ser.isOpen:
+#         ser.open()
+#     if not ser.isOpen:
+#         print("Could not open GPS serial port")
+#         sys.exit(1)
 
-    gps = gpslib.GPSManager()
-    gps.add_serial_port(ser)
-    gps.start()
-    return gps
+#     gps = gpslib.GPSManager()
+#     gps.add_serial_port(ser)
+#     gps.start()
+#     return gps
 
 
 def parse_arguments():
@@ -271,8 +271,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=None, epilog=example)
     parser.add_argument('COM', nargs='+', type=str,
                         help='Trios COM port(s)')
-    parser.add_argument('-GPS', type=int,
-                        help='GPS COM port')
+    # parser.add_argument('-GPS', type=int,
+    #                     help='GPS COM port')
     parser.add_argument("-vcom", type=int, choices=[0, 1, 2, 3, 4],
                         help="set verbosity on COM objects", default=1)
     parser.add_argument("-vchn", type=int, choices=[0, 1, 2, 3, 4],
