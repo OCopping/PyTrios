@@ -269,7 +269,7 @@ def parse_arguments():
     example = """Rrs_example 4 5 6 -GPS 7 -vcom 1 -vchn 4 \
     -calpath calfiles -inttime 0 -period 10"""
     parser = argparse.ArgumentParser(description=None, epilog=example)
-    parser.add_argument('-COM', nargs='+', type=str,
+    parser.add_argument('COM', nargs='+', type=str,
                         help='Trios COM port(s)')
     parser.add_argument('-GPS', type=int,
                         help='GPS COM port')
