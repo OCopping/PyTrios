@@ -28,7 +28,7 @@ class TSerial(Serial):
                  parity='N', stopbits=1, bytesize=8):#, verbosity=1):
         try:
             port = str(port)
-            port = "/dev/tty"+port.strip('/dev/tty')
+            port = "/dev/ttyUSB"+port.strip('/dev/ttyUSB')
             Serial.__init__(self, port)
             self.baudrate = baudrate
             self.timeout = timeout

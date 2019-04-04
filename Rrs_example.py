@@ -56,15 +56,20 @@ def run(args):
     # else:
     #     usegps = False
 
-    # connect and start listening on specified COM port(s)
-    coms = ps.TMonitor(args.COM, baudrate=9600)
-    # set verbosity for com channel (com messages / errors)
-    # 0/1/2 = none, errors, all
-    coms[0].verbosity = args.vcom
+    # coms = []
+    # # connect and start listening on specified COM port(s)
+    # for arg in args.USB:
+    #     coms.append(ps.TMonitor(arg, baudrate=9600))
+    coms = ps.TMonitor(args.USB, baudrate=9600)
 
-    # identify connected instruments
-    ps.TCommandSend(coms[0], commandset=None, command='query')
-    time.sleep(1)  # wait for query results
+    for com in coms:
+        # set verbosity for com channel (com messages / errors)
+        # 0/1/2 = none, errors, all
+        com.verbosity = args.vcom
+
+        # identify connected instruments
+        ps.TCommandSend(com, commandset=None, command='query')
+        time.sleep(1)  # wait for query results
 
     # identify SAM instruments from identified channels
     tk = ps.tchannels.keys()
@@ -121,11 +126,13 @@ def run(args):
                 # except:
                 #     pass
                 if args.inttime > 0:
-                    # trigger single measurement at fixed integration time
-                    tc[s].startIntSet(coms[0], args.inttime, trigger=lasttrigger)
+                    for com in coms:
+                        # trigger single measurement at fixed integration time
+                        tc[s].startIntSet(com, args.inttime, trigger=lasttrigger)
                 else:
-                    # trigger single measurement at auto integration time
-                    tc[s].startIntAuto(coms[0], trigger=lasttrigger)
+                    for com in coms:
+                        # trigger single measurement at auto integration time
+                        tc[s].startIntAuto(com, trigger=lasttrigger)
 
             # follow progress
             npending = len(sams)
@@ -151,9 +158,10 @@ def run(args):
             if nfinished == 0:
                 warningmsg = "No results received. Attempting to reconnect.. "
                 print(warningmsg, file=sys.stderr)
-                # no response? re-send query to see who is still talking
-                ps.TCommandSend(coms[0], commandset=None, command='query')
-                time.sleep(0.25)  # wait for query results
+                for com in coms:
+                    # no response? re-send query to see who is still talking
+                    ps.TCommandSend(com, commandset=None, command='query')
+                    time.sleep(0.25)  # wait for query results
                 # identify SAM instruments from identified channels
                 tk = ps.tchannels.keys()
                 tc = ps.tchannels
@@ -269,7 +277,7 @@ def parse_arguments():
     example = """Rrs_example 4 5 6 -GPS 7 -vcom 1 -vchn 4 \
     -calpath calfiles -inttime 0 -period 10"""
     parser = argparse.ArgumentParser(description=None, epilog=example)
-    parser.add_argument('COM', nargs='+', type=str,
+    parser.add_argument('USB', nargs='+', type=str,
                         help='Trios COM port(s)')
     # parser.add_argument('-GPS', type=int,
     #                     help='GPS COM port')
