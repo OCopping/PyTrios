@@ -26,13 +26,12 @@ Last update: see __version__\n
 *For example use please see the enclosed PyTrios_Examples.py script.*
 """
 
-from __future__ import print_function
 import sys
 import time
 import struct
 import numpy as np
 import threading
-from TClasses import TProtocolError, TPackMeasKeyError,\
+from .TClasses import TProtocolError, TPackMeasKeyError,\
     TPacket, TSerial, TCommandSend
 
 __version__ = "2015.12.28"
@@ -138,13 +137,13 @@ def handlePacket(ser, packet):
             elif interpreter == 'SAM':
                 ch = SAMInterpreter(tchannels[port_tid], p)
                 tchannels[port_tid] = ch
-        except Exception, emsg:
+        except Exception as emsg:
             raise TProtocolError(emsg)
 
 
 def SAMInterpreter(regch, packet):
     formatstring = '<'+'H'*int(packet.id1_databytes/2)
-    rawdata = ''.join([chr(y) for y in packet.databytes])
+    rawdata = bytearray(y for y in packet.databytes)
     LEdata = struct.unpack(formatstring, rawdata)
     """ sloppy code comment:
     In the following, if we place LEdata directly into the dataframes slice
@@ -256,21 +255,21 @@ def _get_s2parse(s, ser):
             return s, None
 
         s = s+ser.read(1000)
-        first, last = s.find('#'), s.rfind('#')
+        first, last = s.find(b'#'), s.rfind(b'#')
         s = TStrRepl(s)  # correct replacement chars
         if first < 0 or not last >= first:
             return s, None
 
-        s = s[s.find('#', 0):]  # omit incomplete sequence at start
+        s = s[s.find(b'#', 0):]  # omit incomplete sequence at start
         if len(s) <= 1:  # 1st byte after # = size
             return s, None
 
-        ndatabytes = 2*2**(ord(s[1]) >> 5)
+        ndatabytes = 2*2**(s[1] >> 5)
         blocklength = 8+ndatabytes
         if len(s) >= blocklength:
             s2parse = s[1:blocklength]  # block to parse
             if ser.verbosity >= 4:
-                prettyhex = ":".join("{0:x}".format(ord(c)) for c in s2parse)
+                prettyhex = ":".join("{0:x}".format(c) for c in s2parse)
                 print("TListen: {0}".format(prettyhex), file=sys.stdout)
             s = s[blocklength:]  # remainder to next cycle
             return s, s2parse
@@ -286,7 +285,7 @@ def _get_s2parse(s, ser):
 def TListen(ser):
     """Monitors and maintains a serial port instance *ser*"""
     print("Start listening thread on {0}".format(ser.port), file=sys.stdout)
-    s = ""
+    s = b""
     timeouttimer = 0
     while ser.threadlive.isSet():
         while ser.threadactive.isSet():
@@ -301,9 +300,9 @@ def TListen(ser):
                                   .format(ser.port), file=sys.stderr)
                     else:
                         handlePacket(ser, packet)
-                except TProtocolError, msg:
+                except TProtocolError as msg:
                     raise Warning(msg)
-                except TPackMeasKeyError, msg:
+                except TPackMeasKeyError as msg:
                     raise Warning(msg)
                     if ser.isOpen:
                         ser.flushOutput()
@@ -313,7 +312,7 @@ def TListen(ser):
                     else:
                         raise Exception('Unrecoverable error - reboot sensors')
                         sys.exit(1)
-                except Exception, msg:
+                except Exception as msg:
                     raise Warning(msg)
             elif timeouttimer - time.time() > 1:
                 s = ""  # clear the buffer
@@ -343,8 +342,8 @@ def TClose(COMs):
 
 
 def TStrRepl(s):
-    s = s.replace('@g', '\x13')  # correct for escape chars (xOFF)
-    s = s.replace('@f', '\x11')  # correct for escape chars (xOn)
-    s = s.replace('@e', '\x23')  # correct for escape chars (data start #)
-    s = s.replace('@d', '\x40')  # correct for escape chars (escape char @)
+    s = s.replace(b'@g', b'\x13')  # correct for escape chars (xOFF)
+    s = s.replace(b'@f', b'\x11')  # correct for escape chars (xOn)
+    s = s.replace(b'@e', b'\x23')  # correct for escape chars (data start #)
+    s = s.replace(b'@d', b'\x40')  # correct for escape chars (escape char @)
     return s

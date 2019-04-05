@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 Example/Template for pytrios use
@@ -15,9 +15,8 @@ python Rrs_example.py -COM 4 -vcom 1 -vchn 3 -samples 3 -rawout raw.txt -calpath
 
 Enjoy--
 """
-from __future__ import print_function
-import pytrios.PyTrios as ps
-import pytrios.ramses_calibrate as rcal
+from pytrios import PyTrios as ps
+from pytrios import ramses_calibrate as rcal
 from pytrios import gpslib
 import sys
 import time
@@ -41,7 +40,7 @@ def run(args):
         try:
             print("Looking for calibration files")
             caldict = rcal.importCalFiles(args.calpath)
-        except Exception, m:
+        except Exception as m:
             print("Failed to import calibration files:\n{0}".format(m),
                   file=sys.stderr)
             sys.exit(1)
@@ -72,12 +71,12 @@ def run(args):
         time.sleep(1)  # wait for query results
 
     # identify SAM instruments from identified channels
-    tk = ps.tchannels.keys()
+    tk = list(ps.tchannels.keys())
     tc = ps.tchannels
     sams = [k for k in tk if ps.tchannels[k].TInfo.ModuleType in ['SAM', 'SAMIP']]  # keys
     chns = [tc[k].TInfo.TID for k in sams]  # channel addressing
     sns = [tc[k].TInfo.serialn for k in sams]  # sensor ids
-    print("found SAM modules: {0}".format(zip(chns, sns)), file=sys.stdout)
+    print("found SAM modules: {0}".format(list(zip(chns, sns))), file=sys.stdout)
 
     if len(sams) == 0:
         ps.TClose(coms)
@@ -163,12 +162,12 @@ def run(args):
                     ps.TCommandSend(com, commandset=None, command='query')
                     time.sleep(0.25)  # wait for query results
                 # identify SAM instruments from identified channels
-                tk = ps.tchannels.keys()
+                tk = list(ps.tchannels.keys())
                 tc = ps.tchannels
                 sams = [k for k in tk if ps.tchannels[k].TInfo.ModuleType == 'SAM']
                 chns = [tc[k].TInfo.TID for k in sams]  # channel addressing
                 sns = [tc[k].TInfo.serialn for k in sams]  # sensor ids
-                print("found SAM modules: {0}".format(zip(chns, sns)),
+                print("found SAM modules: {0}".format(list(zip(chns, sns))),
                       file=sys.stdout)
 
             else:
@@ -256,7 +255,7 @@ def run(args):
     #     gps.stop()
     #     # [p.close() for p in gps.serial_ports]
 
-    raw_input('Press enter to close')
+    input('Press enter to close')
     sys.exit(0)
 
 # def startGps(comportstr):
