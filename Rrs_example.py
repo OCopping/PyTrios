@@ -272,3 +272,4 @@ if __name__ == '__main__':
     args = parse_arguments()
     trios_manager = TriosManager(args)
     trios_manager.run()
+    del(trios_manager)
