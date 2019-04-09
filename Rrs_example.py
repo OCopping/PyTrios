@@ -17,7 +17,7 @@ Enjoy--
 """
 from pytrios import PyTrios as ps
 from pytrios import ramses_calibrate as rcal
-from pytrios import gpslib
+#from pytrios import gpslib
 import sys
 import time
 import datetime
@@ -33,253 +33,210 @@ prog = "pytrios v{0} by {1} ({2})".format(ps.__version__, ps.__author__,
                                           ps.__license__)
 
 
-def run(args):
-    # produce calibrated spectra?
-    if args.calpath is not None:
-        calibrate = True
-        try:
-            print("Looking for calibration files")
-            caldict = rcal.importCalFiles(args.calpath)
-        except Exception as m:
-            print("Failed to import calibration files:\n{0}".format(m),
-                  file=sys.stderr)
-            sys.exit(1)
-    else:
-        calibrate = False
+class TriosManager(object):
+    """
+    Trios manager class
+    """
 
-    # if args.GPS is not None:
-    #     gpsport = str(args.GPS)
-    #     gpsport = "COM"+gpsport.upper().strip('COM')
-    #     gps = startGps(gpsport)
-    #     usegps = True
-    # else:
-    #     usegps = False
+    def __init__(self, args):
+        self.args = args
 
-    # coms = []
-    # # connect and start listening on specified COM port(s)
-    # for arg in args.USB:
-    #     coms.append(ps.TMonitor(arg, baudrate=9600))
-    coms = ps.TMonitor(args.USB, baudrate=9600)
+        # produce calibrated spectra?
+        if self.args.calpath is not None:
+            self.calibrate = True
+            try:
+                print("Looking for calibration files")
+                self.caldict = rcal.importCalFiles(args.calpath)
+            except Exception as m:
+                print("Failed to import calibration files:\n{0}".format(m),
+                    file=sys.stderr)
+                sys.exit(1)
+        else:
+            self.calibrate = False
 
-    for com in coms:
-        # set verbosity for com channel (com messages / errors)
-        # 0/1/2 = none, errors, all
-        com.verbosity = args.vcom
+        # coms = []
+        # # connect and start listening on specified COM port(s)
+        # for arg in args.USB:
+        #     coms.append(ps.TMonitor(arg, baudrate=9600))
+        self.coms = ps.TMonitor(self.args.USB, baudrate=9600)
+        #print(self.coms, file=sys.stdout)
 
-        # identify connected instruments
-        ps.TCommandSend(com, commandset=None, command='query')
-        time.sleep(1)  # wait for query results
+        for com in self.coms:
+            # set verbosity for com channel (com messages / errors)
+            # 0/1/2 = none, errors, all
+            com.verbosity = self.args.vcom
 
-    # identify SAM instruments from identified channels
-    tk = list(ps.tchannels.keys())
-    tc = ps.tchannels
-    sams = [k for k in tk if ps.tchannels[k].TInfo.ModuleType in ['SAM', 'SAMIP']]  # keys
-    chns = [tc[k].TInfo.TID for k in sams]  # channel addressing
-    sns = [tc[k].TInfo.serialn for k in sams]  # sensor ids
-    print("found SAM modules: {0}".format(list(zip(chns, sns))), file=sys.stdout)
+            # identify connected instruments
+            ps.TCommandSend(com, commandset=None, command='query')
+            time.sleep(1)  # wait for query results
 
-    if len(sams) == 0:
-        ps.TClose(coms)
-        raise Exception("no SAM modules found")
+        # identify SAM instruments from identified channels
+        self.tk = list(ps.tchannels.keys())
+        self.tc = ps.tchannels
+        self.sams = [k for k in self.tk if ps.tchannels[k].TInfo.ModuleType in ['SAM', 'SAMIP']]  # keys
+        self.chns = [self.tc[k].TInfo.TID for k in self.sams]  # channel addressing
+        self.sns = [self.tc[k].TInfo.serialn for k in self.sams]  # sensor ids
+        print("found SAM modules: {0}".format(list(zip(self.chns, self.sns))), file=sys.stdout)
 
-    for s in sams:
-        # 0/1/2/3/4 = none, errors, queries(default), measurements, all
-        tc[s].verbosity = args.vchn  # set verbosity level for each sensor
+        if len(self.sams) == 0:
+            ps.TClose(self.coms)
+            raise Exception("no SAM modules found")
 
-    counter = 0
-    starttime = time.time()
-    go = True
-    while go:
-        try:
-            # if usegps:
-            #     gpstimer = time.time()
-            #     while (time.time() - gpstimer < 3) and\
-            #             (gps.fix_quality < 2 or gps.old):
-            #         print("Waiting for GPS fix", file=sys.stdout)
-            #         print("Fix quality {0}, {1}".format(gps.fix_quality, gps.lon))
-            #         time.sleep(1)
-            #     if (time.time() - gpstimer >= 3) and\
-            #             (gps.fix_quality < 2 or gps.old):
-            #         print("GPS timed out", file=sys.stdout)
-            #         lasttrigGPSdt = ''
-            #         lasttrigGPSlat = ''
-            #         lasttrigGPSlon = ''
-            #         lasttrigGPSspeed = ''
-            #         lasttrigGPSheading = ''
-            # else:
-            lasttrigGPSdt = ''
-            lasttrigGPSlat = ''
-            lasttrigGPSlon = ''
-            lasttrigGPSspeed = ''
-            lasttrigGPSheading = ''
-            counter += 1
-            for s in sams:
-                lasttrigger = datetime.datetime.now()
-                lasttrigstr = lasttrigger.isoformat()
-                # try:
-                #     lasttrigGPSdt = gps.datetime.isoformat()
-                #     lasttrigGPSlat = str(gps.lat)
-                #     lasttrigGPSlon = str(gps.lon)
-                #     lasttrigGPSspeed = str(gps.speed)
-                #     lasttrigGPSheading = str(gps.heading)
-                # except:
-                #     pass
-                if args.inttime > 0:
-                    for com in coms:
-                        # trigger single measurement at fixed integration time
-                        tc[s].startIntSet(com, args.inttime, trigger=lasttrigger)
+        for s in self.sams:
+            # 0/1/2/3/4 = none, errors, queries(default), measurements, all
+            self.tc[s].verbosity = self.args.vchn  # set verbosity level for each sensor
+
+
+    def run(self):
+
+        counter = 0
+        starttime = time.time()
+        go = True
+
+        while go:
+        #while True:
+            try:
+
+                counter += 1
+                for s in self.sams:
+                    lasttrigger = datetime.datetime.now()
+                    lasttrigstr = lasttrigger.isoformat()
+
+                    if self.args.inttime > 0:
+                        for com in self.coms:
+                            # trigger single measurement at fixed integration time
+                            self.tc[s].startIntSet(com, self.args.inttime, trigger=lasttrigger)
+                    else:
+                        for com in self.coms:
+                            # trigger single measurement at auto integration time
+                            self.tc[s].startIntAuto(com, trigger=lasttrigger)
+
+                # follow progress
+                npending = len(self.sams)
+                while npending > 0:
+                    nfinished = sum([1 for s in self.sams if self.tc[s].is_finished()])
+                    npending = sum([1 for s in self.sams if self.tc[s].is_pending()])
+                    # print(nfinished, npending)
+                    time.sleep(0.05)
+
+                # display some info:
+                # how long did they take?
+                delays = [self.tc[s].TSAM.lastRawSAMTime - lasttrigger for s in self.sams]
+                delaysec = max([d.total_seconds() for d in delays])
+
+                print("\t{0} spectra received, triggered at {1} ({2} s)"
+                    .format(nfinished, lasttrigger, delaysec), file=sys.stdout)
+
+                if nfinished == len(self.sams):
+                    print("-{0}- All triggered measurements received"
+                        .format(str(counter).zfill(4)),
+                        file=sys.stdout)
+
+                if nfinished == 0:
+                    warningmsg = "No results received. Attempting to reconnect.. "
+                    print(warningmsg, file=sys.stderr)
+                    for com in self.coms:
+                        # no response? re-send query to see who is still talking
+                        ps.TCommandSend(com, commandset=None, command='query')
+                        time.sleep(0.25)  # wait for query results
+                    # identify SAM instruments from identified channels
+                    self.tk = list(ps.tchannels.keys())
+                    self.tc = ps.tchannels
+                    self.sams = [k for k in self.tk if ps.tchannels[k].TInfo.ModuleType == 'SAM']
+                    self.chns = [self.tc[k].TInfo.TID for k in self.sams]  # channel addressing
+                    self.sns = [self.tc[k].TInfo.serialn for k in self.sams]  # sensor ids
+                    print("found SAM modules: {0}".format(list(zip(self.chns, self.sns))),
+                        file=sys.stdout)
+
                 else:
-                    for com in coms:
-                        # trigger single measurement at auto integration time
-                        tc[s].startIntAuto(com, trigger=lasttrigger)
+                    # gather succesful results
+                    specs = [self.tc[s].TSAM.lastRawSAM
+                            for s in self.sams if self.tc[s].is_finished()]
+                    sids = [self.tc[s].TInfo.serialn
+                            for s in self.sams if self.tc[s].is_finished()]
+                    itimes = [self.tc[s].TSAM.lastIntTime
+                            for s in self.sams if self.tc[s].is_finished()]
 
-            # follow progress
-            npending = len(sams)
-            while npending > 0:
-                nfinished = sum([1 for s in sams if tc[s].is_finished()])
-                npending = sum([1 for s in sams if tc[s].is_pending()])
-                # print(nfinished, npending)
-                time.sleep(0.05)
-
-            # display some info:
-            # how long did they take?
-            delays = [tc[s].TSAM.lastRawSAMTime - lasttrigger for s in sams]
-            delaysec = max([d.total_seconds() for d in delays])
-
-            print("\t{0} spectra received, triggered at {1} ({2} s)"
-                  .format(nfinished, lasttrigger, delaysec), file=sys.stdout)
-
-            if nfinished == len(sams):
-                print("-{0}- All triggered measurements received"
-                      .format(str(counter).zfill(4)),
-                      file=sys.stdout)
-
-            if nfinished == 0:
-                warningmsg = "No results received. Attempting to reconnect.. "
-                print(warningmsg, file=sys.stderr)
-                for com in coms:
-                    # no response? re-send query to see who is still talking
-                    ps.TCommandSend(com, commandset=None, command='query')
-                    time.sleep(0.25)  # wait for query results
-                # identify SAM instruments from identified channels
-                tk = list(ps.tchannels.keys())
-                tc = ps.tchannels
-                sams = [k for k in tk if ps.tchannels[k].TInfo.ModuleType == 'SAM']
-                chns = [tc[k].TInfo.TID for k in sams]  # channel addressing
-                sns = [tc[k].TInfo.serialn for k in sams]  # sensor ids
-                print("found SAM modules: {0}".format(list(zip(chns, sns))),
-                      file=sys.stdout)
-
-            else:
-                # gather succesful results
-                specs = [tc[s].TSAM.lastRawSAM
-                         for s in sams if tc[s].is_finished()]
-                sids = [tc[s].TInfo.serialn
-                        for s in sams if tc[s].is_finished()]
-                itimes = [tc[s].TSAM.lastIntTime
-                          for s in sams if tc[s].is_finished()]
-
-                if args.rawout is not None:
-                    #  write raw data to specified file
-                    for sp, si, it in zip(specs, sids, itimes):
-                        outstr = ",".join([lasttrigstr,
-                                           lasttrigGPSdt,lasttrigGPSlat,
-                                           lasttrigGPSlon, lasttrigGPSspeed,
-                                           lasttrigGPSheading,
-                                           si, str(it),
-                                           ",".join([str(s) for s in sp])])+'\n'
-                        with open(args.rawout, 'a+') as f:
-                            f.write(outstr)
-
-                if calibrate:  # get calibrated spectra
-                    cspecs = []
-                    wlOut = arange(320, 955, 3.3)
-                    for spec, sid in zip(specs, sids):
-                        try:
-                            csp = rcal.raw2cal_Air(spec, lasttrigger,
-                                                   sid, caldict,
-                                                   wlOut=wlOut)
-                            cspecs.append(csp)
-                        except:
-                            warnmsg = "Could not calibrate spectrum from {0}. Is calibration file present?".format(sid)
-                            cspecs.append([nan]*len(wlOut))
-                            print(warnmsg, file=sys.stderr)
-                            pass
-
-                if calibrate and args.calout is not None:
-                    #  write calibrated data to specified file
-                    for sp, si, it in zip(cspecs, sids, itimes):
-                        if sum([1 for s in sp if isnan(s)]) < len(sp):
+                    if self.args.rawout is not None:
+                        #  write raw data to specified file
+                        for sp, si, it in zip(specs, sids, itimes):
                             outstr = ",".join([lasttrigstr,
-                                               lasttrigGPSdt, lasttrigGPSlat,
-                                               lasttrigGPSlon, lasttrigGPSspeed,
-                                               lasttrigGPSheading,
-                                               si, str(it),
-                                               ",".join([str(s) for s in sp])])
-                            outstr = outstr + '\n'
-                            with open(args.calout, 'a+') as f:
+                                            si, str(it),
+                                            ",".join([str(s) for s in sp])])+'\n'
+                            with open(self.args.rawout, 'a+') as f:
                                 f.write(outstr)
 
-                if args.plotting:
-                    # plot results
-                    plt.ion()
-                    fig = plt.figure(1)
-                    fig.clf()
-                    ax1 = fig.add_axes((0.1, 0.1, 0.8, 0.8))
-                    if calibrate:  # get calibrated spectra
-                        [ax1.plot(wlOut, cs, label=sid)
-                         for cs, sid in zip(cspecs, sids)]
-                    else:
-                        [ax1.plot(sp, label=sid)
-                         for sp, sid in zip(specs, sids)]
-                    plt.title("spectrum {0} at {1}".format(counter, lasttrigger))
-                    plt.legend()
-                    plt.draw()
-                    plt.pause(0.01)
+                    if self.calibrate:  # get calibrated spectra
+                        cspecs = []
+                        wlOut = arange(320, 955, 3.3)
+                        for spec, sid in zip(specs, sids):
+                            try:
+                                csp = rcal.raw2cal_Air(spec, lasttrigger,
+                                                    sid, caldict,
+                                                    wlOut=wlOut)
+                                cspecs.append(csp)
+                            except:
+                                warnmsg = "Could not calibrate spectrum from {0}. Is calibration file present?".format(sid)
+                                cspecs.append([nan]*len(wlOut))
+                                print(warnmsg, file=sys.stderr)
+                                pass
 
-            if (args.samples is not None and counter >= args.samples) or\
-                    (args.period is not None and
-                     ((time.time() - starttime)/60.0 >= args.period)):
-                go = False
-        except:
-            ps.TClose(coms)
-            # if usegps:
-            #     gps.stop()
-            #     # [p.close() for p in gps.serial_ports]
-            print("unexpected error!")
-            raise
-            sys.exit(1)
-    # Cleanly close COM connections + listening threads
-    ps.TClose(coms)
-    # if usegps:
-    #     gps.stop()
-    #     # [p.close() for p in gps.serial_ports]
+                    if self.calibrate and self.args.calout is not None:
+                        #  write calibrated data to specified file
+                        for sp, si, it in zip(cspecs, sids, itimes):
+                            if sum([1 for s in sp if isnan(s)]) < len(sp):
+                                outstr = ",".join([lasttrigstr,
+                                                si, str(it),
+                                                ",".join([str(s) for s in sp])])
+                                outstr = outstr + '\n'
+                                with open(self.args.calout, 'a+') as f:
+                                    f.write(outstr)
 
-    input('Press enter to close')
-    sys.exit(0)
+                    if self.args.plotting:
+                        # plot results
+                        plt.ion()
+                        fig = plt.figure(1)
+                        fig.clf()
+                        ax1 = fig.add_axes((0.1, 0.1, 0.8, 0.8))
+                        if calibrate:  # get calibrated spectra
+                            [ax1.plot(wlOut, cs, label=sid)
+                            for cs, sid in zip(cspecs, sids)]
+                        else:
+                            [ax1.plot(sp, label=sid)
+                            for sp, sid in zip(specs, sids)]
+                        plt.title("spectrum {0} at {1}".format(counter, lasttrigger))
+                        plt.legend()
+                        plt.draw()
+                        plt.pause(0.01)
 
-# def startGps(comportstr):
-#     ser = serial.Serial(comportstr, baudrate=4800)  # open serial port
-#     if not ser.isOpen:
-#         ser.open()
-#     if not ser.isOpen:
-#         print("Could not open GPS serial port")
-#         sys.exit(1)
+                if (self.args.samples is not None and counter >= self.args.samples) or\
+                        (self.args.period is not None and
+                        ((time.time() - starttime)/60.0 >= self.args.period)):
+                    go = False
+            except:
+                ps.TClose(self.coms)
 
-#     gps = gpslib.GPSManager()
-#     gps.add_serial_port(ser)
-#     gps.start()
-#     return gps
+                print("unexpected error!")
+                raise
+                sys.exit(1)
+            # Cleanly close COM connections + listening threads
+
+        # input('Press enter to close')
+        # sys.exit(0)
+        time.sleep(0.02)
+
+
+    def __del__(self):
+        ps.TClose(self.coms)
+
 
 
 def parse_arguments():
-    example = """Rrs_example 4 5 6 -GPS 7 -vcom 1 -vchn 4 \
+    example = """Rrs_example 4 5 6 -vcom 1 -vchn 4 \
     -calpath calfiles -inttime 0 -period 10"""
     parser = argparse.ArgumentParser(description=None, epilog=example)
     parser.add_argument('USB', nargs='+', type=str,
                         help='Trios COM port(s)')
-    # parser.add_argument('-GPS', type=int,
-    #                     help='GPS COM port')
     parser.add_argument("-vcom", type=int, choices=[0, 1, 2, 3, 4],
                         help="set verbosity on COM objects", default=1)
     parser.add_argument("-vchn", type=int, choices=[0, 1, 2, 3, 4],
@@ -296,7 +253,7 @@ def parse_arguments():
                         help="path to search for calibration files")
     parser.add_argument("-inttime", type=int, default=0,
                         choices=[0, 4, 8, 16, 32, 64, 128, 256, 512, 1024,
-                                 2048, 4096, 8192],
+                                2048, 4096, 8192],
                         help="Integration time in ms (0 = Auto)")
     parser.add_argument("-plotting", dest='plotting', action='store_true',
                         help="On-screen plotting (default off)")
@@ -309,7 +266,9 @@ def parse_arguments():
     return args
 
 
+
 if __name__ == '__main__':
     print(prog)
     args = parse_arguments()
-    run(args)
+    trios_manager = TriosManager(args)
+    trios_manager.run()
